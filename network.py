@@ -20,8 +20,8 @@ class Model(nn.Module):
     
   def forward(self, x):
     # Prepare LSTM initial state
-    batch_size = x.size(0)
-    lstm_init = (torch.zeros(self.lstm_layers, batch_size, self.lstm_size), torch.zeros(self.lstm_layers, batch_size, self.lstm_size))
+    proposal_num = x.size(0)
+    lstm_init = (torch.zeros(self.lstm_layers, proposal_num, self.lstm_size), torch.zeros(self.lstm_layers, proposal_num, self.lstm_size))
     if x.is_cuda:
       lstm_init = (Variable(lstm_init[0].cuda(), volatile=x.volatile), Variable(lstm_init[1].cuda(), volatile=x.volatile))
     else:
