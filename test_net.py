@@ -1,3 +1,4 @@
+# For Python2 and Python3 Compatibility
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -77,7 +78,7 @@ def parse_args():
                       default=1, type=int)
   parser.add_argument('--checkpoint', dest='checkpoint',
                       help='checkpoint to load network',
-                      default=10021, type=int)
+                      default=10000, type=int)
   parser.add_argument('--bs', dest='batch_size',
                       help='batch_size',
                       default=1, type=int)
