@@ -24,7 +24,7 @@ from model.rpn.bbox_transform import clip_boxes
 from model.nms.nms_wrapper import nms
 from model.rpn.bbox_transform import bbox_transform_inv
 from model.utils.net_utils import save_net, load_net, vis_detections
-from model.faster_rcnn.vgg16 import vgg16
+# Network
 from model.faster_rcnn.resnet import resnet
 
 import pdb
@@ -133,23 +133,19 @@ if __name__ == '__main__':
     'faster_rcnn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
   # initilize the network here.
-  if args.net == 'vgg16':
-    fasterRCNN = vgg16(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic)
+  if args.net == 'LSTM1':
+    TSD = lstm_1(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic) # TSD : Time Series Detection
   elif args.net == 'res101':
-    fasterRCNN = resnet(imdb.classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
-  elif args.net == 'res50':
-    fasterRCNN = resnet(imdb.classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
-  elif args.net == 'res152':
-    fasterRCNN = resnet(imdb.classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
+    print("This network is not implemented yet")
   else:
     print("network is not defined")
     pdb.set_trace()
 
-  fasterRCNN.create_architecture()
+  TSD.create_architecture()
 
   print("load checkpoint %s" % (load_name))
   checkpoint = torch.load(load_name)
-  fasterRCNN.load_state_dict(checkpoint['model'])
+  TSD.load_state_dict(checkpoint['model'])
   if 'pooling_mode' in checkpoint.keys():
     cfg.POOLING_MODE = checkpoint['pooling_mode']
 
@@ -178,7 +174,7 @@ if __name__ == '__main__':
     cfg.CUDA = True
 
   if args.cuda:
-    fasterRCNN.cuda()
+    TSD.cuda()
 
   start = time.time()
   max_per_image = 100
@@ -190,7 +186,7 @@ if __name__ == '__main__':
   else:
     thresh = 0.0
 
-  save_name = 'faster_rcnn_10'
+  save_name = 'lstm1'
   num_images = len(imdb.image_index)
   all_boxes = [[[] for _ in xrange(num_images)]
                for _ in xrange(imdb.num_classes)]
@@ -207,7 +203,7 @@ if __name__ == '__main__':
   _t = {'im_detect': time.time(), 'misc': time.time()}
   det_file = os.path.join(output_dir, 'detections.pkl')
 
-  fasterRCNN.eval()
+  TSD.eval()
   empty_array = np.transpose(np.array([[],[],[],[],[]]), (1,0))
   for i in range(num_images):
 
@@ -221,7 +217,7 @@ if __name__ == '__main__':
       rois, cls_prob, bbox_pred, \
       rpn_loss_cls, rpn_loss_box, \
       RCNN_loss_cls, RCNN_loss_bbox, \
-      rois_label = fasterRCNN(im_data, im_info, gt_boxes, num_boxes)
+      rois_label = TSD(im_data, im_info, gt_boxes, num_boxes)
 
       scores = cls_prob.data
       boxes = rois.data[:, :, 1:5]
