@@ -20,24 +20,23 @@ class _ProposalLayer(nn.Module):
     transformations to a set of regular boxes (called "anchors").
     """
 
-    def __init__(self, feat_stride, scales, ratios):
+    def __init__(self, feat_stride, scales):
         super(_ProposalLayer, self).__init__()
 
-        self._feat_stride = feat_stride
-        self._anchors = torch.from_numpy(generate_anchors(scales=np.array(scales), 
-            ratios=np.array(ratios))).float()
+        self._feat_stride = feat_stride # In Faster R-CNN = [16, ]
+        self._anchors = torch.from_numpy(generate_anchors(scales=np.array(scales))).float()
         self._num_anchors = self._anchors.size(0)
 
         # rois blob: holds R regions of interest, each is a 5-tuple
-        # (n, x1, y1, x2, y2) specifying an image batch index n and a
-        # rectangle (x1, y1, x2, y2)
-        # top[0].reshape(1, 5)
+        # (n, start, end) specifying an image batch index n and a
+        # interval (start, end)
+        # top[0].reshape(1, 3)
         #
         # # scores blob: holds scores for R regions of interest
         # if len(top) > 1:
         #     top[1].reshape(1, 1, 1, 1)
 
-    def forward(self, input):
+    def forward(self, input): #input : (rpn_cls_prob.data, rpn_bbox_pred.data, im_info, cfg_key)
 
         # Algorithm:
         #
@@ -55,42 +54,44 @@ class _ProposalLayer(nn.Module):
 
         # the first set of _num_anchors channels are bg probs
         # the second set are the fg probs
-        scores = input[0][:, self._num_anchors:, :, :]
-        bbox_deltas = input[1]
+        scores = input[0][:, self._num_anchors:, :] # [1, 2 * #anchor, length] -> [1, #anchor, length]
+        bbox_deltas = input[1] # [1, #anchor * 2, length]
         im_info = input[2]
-        cfg_key = input[3]
+        cfg_key = input[3] # 'TRAIN' or 'TEST'
 
         pre_nms_topN  = cfg[cfg_key].RPN_PRE_NMS_TOP_N
         post_nms_topN = cfg[cfg_key].RPN_POST_NMS_TOP_N
         nms_thresh    = cfg[cfg_key].RPN_NMS_THRESH
         min_size      = cfg[cfg_key].RPN_MIN_SIZE
 
-        batch_size = bbox_deltas.size(0)
+        batch_size = bbox_deltas.size(0) # Normally 1
 
-        feat_height, feat_width = scores.size(2), scores.size(3)
-        shift_x = np.arange(0, feat_width) * self._feat_stride
-        shift_y = np.arange(0, feat_height) * self._feat_stride
-        shift_x, shift_y = np.meshgrid(shift_x, shift_y)
-        shifts = torch.from_numpy(np.vstack((shift_x.ravel(), shift_y.ravel(),
-                                  shift_x.ravel(), shift_y.ravel())).transpose())
+        feat_length = scores.size(2)
+        shift = np.arange(0, feat_length) * self._feat_stride # ANCHORS CENTER
+        shifts = torch.from_numpy(shift.transpose())
         shifts = shifts.contiguous().type_as(scores).float()
 
-        A = self._num_anchors
-        K = shifts.size(0)
+        A = self._num_anchors # # of bbox per one anchor
+        K = shifts.size(0) # total # of anchors
 
         self._anchors = self._anchors.type_as(scores)
         # anchors = self._anchors.view(1, A, 4) + shifts.view(1, K, 4).permute(1, 0, 2).contiguous()
-        anchors = self._anchors.view(1, A, 4) + shifts.view(K, 1, 4)
-        anchors = anchors.view(1, K * A, 4).expand(batch_size, K * A, 4)
+        anchors = self._anchors.view(1, A, 2) + shifts.view(K, 1, 2)
+        # self._anchors : (num_anchor(?), coordinate(2))
+        # shifts : (# of total bbox(?), coordinate(2))
+        # anchors : (# of total bbox(?), num_anchor(?), coordinate(2))
+        
+        anchors = anchors.view(1, K * A, 2).expand(batch_size, K * A, 2)
 
         # Transpose and reshape predicted bbox transformations to get them
         # into the same order as the anchors:
 
-        bbox_deltas = bbox_deltas.permute(0, 2, 3, 1).contiguous()
-        bbox_deltas = bbox_deltas.view(batch_size, -1, 4)
+        # bbox_deltas : [1, #anchor * 2, length] -> [1, length, #anchor * 2] -> [1, -1, coordinate(2)]
+        bbox_deltas = bbox_deltas.permute(0, 2, 1).contiguous()
+        bbox_deltas = bbox_deltas.view(batch_size, -1, 2)
 
         # Same story for the scores:
-        scores = scores.permute(0, 2, 3, 1).contiguous()
+        scores = scores.permute(0, 2, 1).contiguous()
         scores = scores.view(batch_size, -1)
 
         # Convert anchors into proposals via bbox transformations
