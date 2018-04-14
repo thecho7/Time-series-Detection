@@ -100,23 +100,12 @@ class _ProposalLayer(nn.Module):
         # 2. clip predicted boxes to image
         proposals = clip_boxes(proposals, im_info, batch_size)
         # proposals = clip_boxes_batch(proposals, im_info, batch_size)
-
-        # assign the score to 0 if it's non keep.
-        # keep = self._filter_boxes(proposals, min_size * im_info[:, 2])
-
-        # trim keep index to make it euqal over batch
-        # keep_idx = torch.cat(tuple(keep_idx), 0)
-
-        # scores_keep = scores.view(-1)[keep_idx].view(batch_size, trim_size)
-        # proposals_keep = proposals.view(-1, 4)[keep_idx, :].contiguous().view(batch_size, trim_size, 4)
-        
-        # _, order = torch.sort(scores_keep, 1, True)
         
         scores_keep = scores
         proposals_keep = proposals
         _, order = torch.sort(scores_keep, 1, True)
 
-        output = scores.new(batch_size, post_nms_topN, 5).zero_()
+        output = scores.new(batch_size, post_nms_topN, 3).zero_()
         for i in range(batch_size):
             # # 3. remove predicted boxes with either height or width < threshold
             # # (NOTE: convert min_size to input image scale stored in im_info[2])
@@ -137,7 +126,7 @@ class _ProposalLayer(nn.Module):
             # 7. take after_nms_topN (e.g. 300)
             # 8. return the top proposals (-> RoIs top)
 
-            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
+@@@@            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
             keep_idx_i = keep_idx_i.long().view(-1)
 
             if post_nms_topN > 0:
