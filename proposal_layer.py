@@ -8,7 +8,7 @@ import yaml
 from model.utils.config import cfg
 from .generate_anchors import generate_anchors
 from .bbox_transform import bbox_transform_inv, clip_boxes, clip_boxes_batch
-from model.nms.nms_wrapper import nms
+from model.nms import nms
 
 import pdb
 
@@ -126,7 +126,7 @@ class _ProposalLayer(nn.Module):
             # 7. take after_nms_topN (e.g. 300)
             # 8. return the top proposals (-> RoIs top)
 
-@@@@            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh, force_cpu=not cfg.USE_GPU_NMS)
+            keep_idx_i = nms(torch.cat((proposals_single, scores_single), 1), nms_thresh)
             keep_idx_i = keep_idx_i.long().view(-1)
 
             if post_nms_topN > 0:
@@ -151,7 +151,6 @@ class _ProposalLayer(nn.Module):
 
     def _filter_boxes(self, boxes, min_size):
         """Remove all boxes with any side smaller than min_size."""
-        ws = boxes[:, :, 2] - boxes[:, :, 0] + 1
-        hs = boxes[:, :, 3] - boxes[:, :, 1] + 1
-        keep = ((ws >= min_size.view(-1,1).expand_as(ws)) & (hs >= min_size.view(-1,1).expand_as(hs)))
+        ws = boxes[:, :, 1] - boxes[:, :, 0] + 1
+        keep = (ws >= min_size.view(-1,1).expand_as(ws))
         return keep
