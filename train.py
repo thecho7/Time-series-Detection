@@ -39,21 +39,21 @@ def parse_args():
   """
   Parse input arguments
   """
-  parser = argparse.ArgumentParser(description='Train a Fast R-CNN network')
+  parser = argparse.ArgumentParser(description='Train a SUHO network')
   parser.add_argument('--dataset', dest='dataset',
                       help='training dataset',
                       default='pascal_voc', type=str)
   parser.add_argument('--cfg', dest='cfg_file',
                       help='optional config file',
-                      default='cfgs/vgg16.yml', type=str)
+                      default='cfgs/lstm1.yml', type=str)
   parser.add_argument('--net', dest='net',
-                      help='vgg16, res50, res101, res152',
-                      default='res101', type=str)
+                      help='lstm1',
+                      default='lstm1', type=str)
   parser.add_argument('--set', dest='set_cfgs',
                       help='set config keys', default=None,
                       nargs=argparse.REMAINDER)
   parser.add_argument('--load_dir', dest='load_dir',
-                      help='directory to load models', default="/srv/share/jyang375/models",
+                      help='directory to load models', default="/home/biolab/models",
                       type=str)
   parser.add_argument('--cuda', dest='cuda',
                       help='whether use CUDA',
@@ -67,9 +67,6 @@ def parse_args():
   parser.add_argument('--cag', dest='class_agnostic',
                       help='whether perform class_agnostic bbox regression',
                       action='store_true')
-  parser.add_argument('--parallel_type', dest='parallel_type',
-                      help='which part of model to parallel, 0: all, 1: model before roi pooling',
-                      default=0, type=int)
   parser.add_argument('--checksession', dest='checksession',
                       help='checksession to load model',
                       default=1, type=int)
@@ -121,10 +118,8 @@ if __name__ == '__main__':
   pprint.pprint(cfg)
 
   cfg.TRAIN.USE_FLIPPED = False
-  imdb, roidb, ratio_list, ratio_index = combined_roidb(args.imdbval_name, False)
-  imdb.competition_mode(on=True)
 
-  print('{:d} roidb entries'.format(len(roidb)))
+  
 
   input_dir = args.load_dir + "/" + args.net + "/" + args.dataset
   if not os.path.exists(input_dir):
@@ -134,8 +129,8 @@ if __name__ == '__main__':
 
   # initilize the network here.
   if args.net == 'LSTM1':
-    TSD = lstm_1(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic) # TSD : Time Series Detection
-  elif args.net == 'res101':
+    TSD = lstm_1(imdb.classes, pretrained=False) # TSD : Time Series Detection
+  elif args.net == '~~':
     print("This network is not implemented yet")
   else:
     print("network is not defined")
@@ -146,9 +141,6 @@ if __name__ == '__main__':
   print("load checkpoint %s" % (load_name))
   checkpoint = torch.load(load_name)
   TSD.load_state_dict(checkpoint['model'])
-  if 'pooling_mode' in checkpoint.keys():
-    cfg.POOLING_MODE = checkpoint['pooling_mode']
-
 
   print('load model successfully!')
   # initilize the tensor holder here.
